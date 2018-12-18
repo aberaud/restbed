@@ -438,9 +438,8 @@ namespace restbed
             m_timer->async_wait( m_strand->wrap( bind( &SocketImpl::connection_timeout_handler, this, shared_from_this( ), _1 ) ) );
 
             size_t size = 0;
-            auto finished = std::make_shared<bool>(false);
-            auto sharedError = std::make_shared<error_code>();
-            auto sharedSize = std::make_shared<size_t>(0);
+            error_code error {};
+            std::atomic_bool finished(false);
 
 #ifdef BUILD_SSL
 
@@ -448,28 +447,26 @@ namespace restbed
             {
 #endif
                 asio::async_read( *m_socket, *data, asio::transfer_at_least( length ),
-                    [ this, finished, sharedSize, sharedError ]( const error_code & error, size_t size ) {
-                        *sharedError = error;
-                        *sharedSize = size;
-                        *finished = true;
+                    [ &finished, &size, &error ]( const error_code & e, size_t s ) {
+                        error = e;
+                        size = s;
+                        finished = true;
                 });
 #ifdef BUILD_SSL
             }
             else
             {
                 asio::async_read( *m_ssl_socket, *data, asio::transfer_at_least( length ),
-                    [ this, finished, sharedSize, sharedError ]( const error_code & error, size_t size ) {
-                        *sharedError = error;
-                        *sharedSize = size;
-                        *finished = true;
+                    [ &finished, &size, &error ]( const error_code & e, size_t s ) {
+                        error = e;
+                        size = s;
+                        finished = true;
                 });
             }
 #endif
 
-            while (!*finished)
+            while (!finished)
                 m_io_service.run_one();
-            error = *sharedError;
-            size = *sharedSize;
             m_timer->cancel( );
 
             if ( error )
