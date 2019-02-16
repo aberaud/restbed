@@ -16,6 +16,9 @@
 #include <asio/connect.hpp>
 #include <asio/read_until.hpp>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 //System Namespaces
 using std::get;
@@ -62,6 +65,26 @@ namespace restbed
             , m_ssl_socket( nullptr )
 #endif
         {
+            // NOTE: this is a HACK until not moved in a good place
+            // i.e. settings (keep-alive) or function like the timeout
+            // Configure keep alive
+            uint32_t keepalive = 1;
+            setsockopt(m_socket->native_handle(), SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+            uint32_t keepAliveInterval = 30; // seconds
+
+#ifdef TCP_KEEPIDLE
+            // First keep alive message after 30 seconds
+            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPIDLE, &keepAliveInterval, sizeof(keepAliveInterval));
+            // Then every 30 seconds
+            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPINTVL, &keepAliveInterval, sizeof(keepAliveInterval));
+            // Fail after one failure
+            uint32_t cnt = 1;
+            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPCNT, &cnt, sizeof(uint32_t));
+#else
+#ifdef TCP_KEEPALIVE
+            setsockopt(m_socket->native_handle(), IPPROTO_TCP, TCP_KEEPALIVE, &keepAliveInterval, sizeof(keepAliveInterval));
+#endif
+#endif
             return;
         }
 #ifdef BUILD_SSL
