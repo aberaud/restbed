@@ -438,7 +438,6 @@ namespace restbed
             m_timer->async_wait( m_strand->wrap( bind( &SocketImpl::connection_timeout_handler, this, shared_from_this( ), _1 ) ) );
 
             size_t size = 0;
-            error_code error {};
             std::atomic_bool finished(false);
 
 #ifdef BUILD_SSL
@@ -583,10 +582,8 @@ namespace restbed
             m_timer->expires_from_now( m_timeout );
             m_timer->async_wait( bind( &SocketImpl::connection_timeout_handler, this, shared_from_this( ), _1 ) );
 
-            size_t length = 0;
-            auto finished = std::make_shared<bool>(false);
-            auto sharedError = std::make_shared<error_code>();
-            auto sharedLength = std::make_shared<size_t>(0);
+            size_t size = 0;
+            std::atomic_bool finished(false);
 
 #ifdef BUILD_SSL
 
@@ -594,28 +591,26 @@ namespace restbed
             {
 #endif
                 asio::async_read_until( *m_socket, *data, delimiter,
-                    [ this, finished, sharedLength, sharedError ]( const error_code & error, size_t length ) {
-                        *sharedError = error;
-                        *sharedLength = length;
-                        *finished = true;
+                    [ &finished, &size, &error ]( const error_code & e, size_t s ) {
+                        error = e;
+                        size = s;
+                        finished = true;
                 });
 #ifdef BUILD_SSL
             }
             else
             {
                 asio::async_read_until( *m_ssl_socket, *data, delimiter,
-                    [ this, finished, sharedLength, sharedError ]( const error_code & error, size_t length ) {
-                        *sharedError = error;
-                        *sharedLength = length;
-                        *finished = true;
+                    [ &finished, &size, &error ]( const error_code & e, size_t s ) {
+                        error = e;
+                        size = s;
+                        finished = true;
                 });
             }
 #endif
 
-            while (!*finished)
+            while (!finished)
                 m_io_service.run_one();
-            error = *sharedError;
-            length = *sharedLength;
             m_timer->cancel( );
 
             if ( error )
@@ -623,7 +618,7 @@ namespace restbed
                 m_is_open = false;
             }
 
-            return length;
+            return size;
         }
         
         void SocketImpl::read( const shared_ptr< asio::streambuf >& data, const string& delimiter, const function< void ( const error_code&, size_t ) >& callback )
