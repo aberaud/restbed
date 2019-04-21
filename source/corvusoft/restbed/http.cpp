@@ -29,6 +29,10 @@
 #include <asio/error.hpp>
 #include <asio/buffer.hpp>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 //System Namespaces
 using std::free;
 using std::bind;
@@ -169,14 +173,18 @@ namespace restbed
         
         if ( finished )
         {
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async std::async");
             return std::async( std::launch::async, [ ]( const shared_ptr< Request > request ) -> shared_ptr< Response >
             {
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async m_io_service->run( )");
                 request->m_pimpl->m_io_service->run( );
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async m_io_service->run( ) DONE");
                 return request->m_pimpl->m_response;
             }, request );
         }
         else
         {
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async dowhile");
             do
             {
                 request->m_pimpl->m_io_service->run_one( );
@@ -211,8 +219,10 @@ namespace restbed
             error_code error;
             const size_t size = length - request->m_pimpl->m_buffer->size( );
 
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetchs std::async m_socket->start_read");
             request->m_pimpl->m_socket->start_read( request->m_pimpl->m_buffer, size, error );
-            
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetchs std::async m_socket->start_read END");
+
             if ( error and error not_eq asio::error::eof )
             {
                 throw runtime_error( String::format( "Socket receive failed: '%s'", error.message( ).data( ) ) );

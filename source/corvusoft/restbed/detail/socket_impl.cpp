@@ -20,6 +20,10 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 //System Namespaces
 using std::get;
 using std::bind;
@@ -445,27 +449,36 @@ namespace restbed
             if ( m_socket not_eq nullptr )
             {
 #endif
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( sock )");
                 asio::async_read( *m_socket, *data, asio::transfer_at_least( length ),
                     [ &finished, &size, &error ]( const error_code & e, size_t s ) {
                         error = e;
                         size = s;
                         finished = true;
+                        __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( sock ) FINISHED");
                 });
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( sock ) END");
 #ifdef BUILD_SSL
             }
             else
             {
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( ssl )");
                 asio::async_read( *m_ssl_socket, *data, asio::transfer_at_least( length ),
                     [ &finished, &size, &error ]( const error_code & e, size_t s ) {
                         error = e;
                         size = s;
                         finished = true;
+                        __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( ssl ) FINISHED");
                 });
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read asio::async_read( ssl ) END");
             }
 #endif
 
-            while (!finished)
+            while (!finished) {
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read m_io_service.run_one");
                 m_io_service.run_one();
+            }
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "SocketImpl::read m_io_service.run_one END");
             m_timer->cancel( );
 
             if ( error )
