@@ -106,9 +106,17 @@ namespace restbed
     
     void Http::close( const shared_ptr< Request >& value )
     {
-        if ( value not_eq nullptr and value->m_pimpl->m_socket not_eq nullptr )
+        __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::close");
+        if ( value )
         {
-            value->m_pimpl->m_socket->close( );
+            if (value->m_pimpl->m_socket )
+            { 
+                value->m_pimpl->m_socket->close( );
+            }
+            if (value->m_pimpl->m_io_service)
+            {
+                value->m_pimpl->m_io_service->stop();
+            }
         }
     }
     
@@ -184,13 +192,13 @@ namespace restbed
         }
         else
         {
-            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async dowhile");
             do
             {
+                __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async dowhile");
                 request->m_pimpl->m_io_service->run_one( );
             }
             while ( finished == false and not request->m_pimpl->m_io_service->stopped( ) );
-            
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::async dowhile DONE");
             std::promise< shared_ptr< Response > > result;
             result.set_value( request->m_pimpl->m_response );
             
@@ -219,9 +227,9 @@ namespace restbed
             error_code error;
             const size_t size = length - request->m_pimpl->m_buffer->size( );
 
-            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetchs std::async m_socket->start_read");
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetch std::async m_socket->start_read");
             request->m_pimpl->m_socket->start_read( request->m_pimpl->m_buffer, size, error );
-            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetchs std::async m_socket->start_read END");
+            __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetch std::async m_socket->start_read END");
 
             if ( error and error not_eq asio::error::eof )
             {
@@ -268,8 +276,10 @@ namespace restbed
         }
         
         error_code error;
+        __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetch m_socket->start_read");
         const size_t size = request->m_pimpl->m_socket->start_read( request->m_pimpl->m_buffer, delimiter, error );
-        
+        __android_log_print(ANDROID_LOG_WARN, "Restbed", "Http::fetch m_socket->start_read END");
+
         if ( error )
         {
             throw runtime_error( String::format( "Socket receive failed: '%s'", error.message( ).data( ) ) );
